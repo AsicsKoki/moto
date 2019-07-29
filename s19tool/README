@@ -1,0 +1,133 @@
+README
+
+		s19tool -- Motorola S-record file conversion tool
+		-------------------------------------------------
+
+This small utility is used to convert data (binary or otherwise) in a
+file to a Motorola S-record (.S19) file or vice-versa. It's features are
+quite basic but should allow plenty of flexibility. They include:
+
+  - Address offset setting
+  - Start address and size settings
+
+These two features allow the conversion of any portion of a binary file
+of up to 64kB in size (including the address offset) to an S-record file
+with the appropriate address encoded in each record. Likewise, any portion
+of an S-record file can be decoded to a binary file, including whatever
+padding that may be needed.
+
+
+	Installation
+	------------
+To install s19tool on any UNIX-like OS, unpack the tarball and descend
+into it's directory. The Makefile has only a couple of options that can
+be edited, such as the install directory. Then, simply type:
+	# make
+	# make install
+The 'make install' will need to be done as root on most systems of the
+default install directory is used (ie. /usr/local/bin).
+
+
+	Using s19tool
+	-------------
+To see what options are available, issue the command 's19tool -h'.
+In particular, the options work as follows:
+
+ -ifile	Input file:  "file" is the filename. The default is 'input'.
+
+ -ofile	Output file:  "file" is the filename. The default is 'output'.
+
+ -x	Export mode:  This sets the mode to convert S-record files
+	to binary data. The default is to convert binary data to
+	S-record files.
+
+ -bn	Byte (address) offset:  "n" is a number of bytes that the
+	address will be offset. When importing binary data, this
+	specifies the base address that will be used in the S-record
+	file. Therefore, if you want the first byte of your binary
+	data to have the offset 0x8000 (32k) the option will be "-b128".
+	When exporting binary data, this offset will be subtracted
+	from the S-record address before storing it in the program's
+	buffer. The default is 0.
+
+ -an	Start address:  "n" is a number of bytes that the data
+	will start at. During an import, this specifies the first
+	byte in the binary file that will be imported. Note, however,
+	that the resulting address will be 'offset + start'
+	preserving the byte-offset of the binary file's first byte.
+	During an export, this specifies the address in the
+	program's buffer of the first byte of the resulting binary file.
+	The default is 0.
+
+ -sn	Data size:  "n" is a number of bytes of data. During an
+	import, this specifies how much of the binary file that
+	will be imported, beginning at the start address. The
+	default for imports is up to the end of the binary file.
+	During an export, this specifies the resulting binary file
+	size. The default for exports is 64kB.
+
+All of the above values can either be "pure" decimal values, hexadecimal
+values with an 'h' appended to them (ie. "3AFh" = 943 bytes), a value in
+256-byte blocks with a 'b' appended to them (ie. "4b" = 1024 bytes), or
+a value in kilobytes with a 'k' appended to them (ie. "2k" = 2048 bytes).
+
+
+	Examples
+	--------
+Importing:  Let's say you have a memory dump of a 16kB EPROM that you
+wish to save to an S-record file. To do this, issue the command:
+	s19tool -ieprom.bin -oeprom.s19
+
+Now, let's also assume this EPROM has a base address of 0xC000 (48kB) in
+the system it originates from and you are only interested in the second
+last 4kB block of the EPROM's data (ie. 0xE000 to 0xEFFF). To do this,
+issue the command:
+	s19tool -bC000h -a2000h -s4k -ieprom.bin -oeprom.s19
+
+Exporting:  Let's say you have an S-record file resulting from
+assembling a program that you would like to upload to an embedded
+CPU that requires binary data. Let's also assume this machine language
+program originates at the address 0x1000 and has the size of 950 bytes.
+To do this, issue the command:
+	s19tool -x -b1000h -s950 -iprogram.s19 -oprogram.bin
+
+Note that the last example will produce a 950 byte binary file but
+it will start at the very beginning of the program. The following
+command will have the same effect during an export:
+	s19tool -x -a1000h -s950 -iprogram.s19 -oprogram.bin
+
+
+	Hints and Tips
+	--------------
+This program doesn't natively support multiple input files, but can be
+fooled into doing so anyways quite easily. To merge multiple S-record
+files for convertion to one binary file, follow these three steps:
+	grep -h S1 foo.s19 bar.s19 > merged.s19
+	echo "S9030000FC" >> merged.s19
+	s19tool -x -imerged.s19 -omerged.bin
+
+Note that any overlapping data in the original S-record files will
+contain data from the last S-record file to use that address space.
+
+To merge multiple binary files for conversion to an S-record file:
+	cat foo.bin bar.bin > merged.bin
+	s19tool -imerged.bin -omerged.s19
+
+However, this trick may prove to be less than useful as you will have
+limited control over how addresses are assigned due to the binary data
+running together and having consecutive address assignment.
+
+To merge binary data while defining specific address ranges for each
+file, import the files one at a time, then merge the resulting S-record
+files like so:
+        ( assuming foo.bin is less than 1kB for this example. )
+        s19tool -b1k -ifoo.bin -ofoo.s19
+	s19tool -b2k -ibar.bin -obar.s19
+	grep -h S1 foo.s19 bar.s19 > merged.s19
+	echo "S9030000FC" >> merged.s19
+
+---
+Jason Woodford, March 27, 2003.
+woody@mail.woodyweb.ca
+http://www.woodyweb.ca/~woody/
+

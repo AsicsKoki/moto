@@ -1,0 +1,153 @@
+.TH S19TOOL 1 "Version 0.1: 27 March 2003"
+.SH NAME
+s19tool - Motorola S-record file conversion tool
+.SH SYNOPSIS
+.B "s19tool [-h] [-x] [-b\fIoffset\fP] [-a\fIstart\fP] [-s\fIsize\fP]"
+.br
+.B "        [-i\fIinput-file\fP] [-o\fIoutput-file\fP]"
+.SH DESCRIPTION
+.I s19tool
+is a small utility to convert data (binary or otherwise) in a
+file to a Motorola S-record (.S19) file or vice-versa. It's features are
+quite basic but should allow plenty of flexibility. They include address
+offset setting and start address and size settings. These two features
+allow the conversion of any portion of a binary file
+of up to 64kB in size (including the address offset) to an S-record file
+with the appropriate address encoded in each record. Likewise, any portion
+of an S-record file can be decoded to a binary file, including whatever
+padding that may be needed.
+
+.SH OPTIONS
+.I s19tool
+does not require any options but unless the defaults fit your needs
+(unlikely) you will want to specify them.
+.IP "-i\fIinput-file\fP"
+Specifies the input filename. The default is \fBinput\fP.
+.IP "-o\fIoutput-file\fP"
+Specifies the output filename. The default is \fBoutput\fP.
+.IP "-x"
+Sets the mode to convert S-record files	to binary data.
+The default is to convert binary data to S-record files.
+.IP "-b\fIoffset\fP"
+Sets the byte (address) offset. \fIoffset\fP is the number of
+bytes that the address will be offset. When importing binary data,
+this specifies the base address that will be used in the S-record
+file. Therefore, if you want the first byte of your binary
+data to have the offset 0x8000 (32k) the option will be \fB-b8000h\fP or
+\fB-b32k\fP. When exporting binary data, this offset will be subtracted
+from the S-record address before storing it in the program's
+buffer. The default is 0.
+.IP "-a\fIstart\fP"
+Sets the start address.  \fIstart\fP is the number of bytes that the
+conversion will start at. During an import, this specifies the first
+byte in the binary file that will be imported. Note, however,
+that the resulting address will be \fIoffset+start\fP
+preserving the byte-offset of the binary file's first byte.
+During an export, this specifies the address in the
+program's buffer of the first byte of the resulting binary file.
+The default is 0.
+.IP "-s\fIsize\fP"
+Sets the data size.  \fIsize\fP is the number of bytes of data. During an
+import, this specifies how much of the binary file that
+will be imported, beginning at the start address. The
+default for imports is up to the end of the binary file.
+During an export, this specifies the resulting binary file
+size. The default for exports is 64kB.
+.PP
+All of the above values can either be decimal values, hexadecimal
+values with an \fBh\fP appended to them (ie. \fB3AFh\fP = 943 bytes),
+a value in 256-byte blocks with a \fBb\fP appended to them
+(ie. \fB4b\fP = 1024 bytes), or a value in kilobytes with a \fBk\fP
+appended to them (ie. \fB2k\fP = 2048 bytes).
+
+.SH EXAMPLES
+.B Importing:
+Let's say you have a memory dump of a 16kB EPROM that you
+wish to save to an S-record file. To do this, issue the command:
+.br
+.B "     s19tool -ieprom.bin -oeprom.s19"
+.br
+Now, let's also assume this EPROM has a base address of 0xC000 (48kB) in
+the system it originates from and you are only interested in the second
+last 4kB block of the EPROM's data (ie. 0xE000 to 0xEFFF). To do this,
+issue the command:
+.br
+.B "     s19tool -bC000h -a2000h -s4k -ieprom.bin -oeprom.s19"
+.PP
+.B Exporting:
+Let's say you have an S-record file resulting from
+assembling a program that you would like to upload to an embedded
+CPU that requires binary data. Let's also assume this machine language
+program originates at the address 0x1000 and has the size of 950 bytes.
+To do this, issue the command:
+.br
+.B "     s19tool -x -b1000h -s950 -iprogram.s19 -oprogram.bin"
+.br
+Note that the last example will produce a 950 byte binary file but
+it will start at the very beginning of the program. The following
+command will have the same effect during an export:
+.br
+.B "     s19tool -x -a1000h -s950 -iprogram.s19 -oprogram.bin"
+
+.SH HINTS AND TIPS
+This program doesn't natively support multiple input files, but can be
+fooled into doing so anyways quite easily. To merge multiple S-record
+files for conversion to one binary file, follow these three steps:
+.br
+.br
+.B "     grep -h S1 foo.s19 bar.s19 > merged.s19"
+.br
+.B "     echo S9030000FC >> merged.s19"
+.br
+.B "     s19tool -x -imerged.s19 -omerged.bin"
+.br
+Note that any overlapping data in the original S-record files will
+contain data from the last S-record file to use that address space.
+.PP
+To merge multiple binary files for conversion to an S-record file:
+.br
+.B "     cat foo.bin bar.bin > merged.bin"
+.br
+.B "     s19tool -imerged.bin -omerged.s19"
+.br
+However, this trick may prove to be less than useful as you will have
+limited control over how addresses are assigned due to the binary data
+running together and having consecutive address assignment.
+.PP
+To merge binary data while defining specific address ranges for each
+file, import the files one at a time, then merge the resulting S-record
+files like so (assuming foo.bin is less than 1kB for this example):
+.br
+.B "     s19tool -b1k -ifoo.bin -ofoo.s19"
+.br
+.B "	 s19tool -b2k -ibar.bin -obar.s19"
+.br
+.B "     grep -h S1 foo.s19 bar.s19 > merged.s19"
+.br
+.B "     echo S9030000FC >> merged.s19"
+
+.SH COPYRIGHT
+Copyright (C)2003 Jason Woodford
+.PP
+\fBs19tool\fP is free software.
+You can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
+the Free Software Foundation.
+See the file README in the s19tool distribution for more details
+regarding installation and use.
+You should have received a copy of the GNU General Public License
+along with the source for s19tool; see the file COPYING.
+If not, write to the Free Software Foundation, 59 Temple Place,
+Suite 330, Boston, MA  02111-1307, USA.
+.PP
+\fBs19tool\fP is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+.SH AUTHOR
+.PP
+Jason Woodford <woody@mail.woodyweb.ca>
+.br
+Send bug reports or comments to the above address.
+
